@@ -23,13 +23,23 @@ function apiUrl(path, query = {}) {
   if (token) url.searchParams.set("token", token);
   return url;
 }
-
+function cookiePair(value) {
+  const index = value.indexOf("=");
+  return index === -1
+    ? [value, ""]
+    : [value.slice(0, index), value.slice(index + 1)];
+}
 function cookiesFrom(response) {
   const setCookies = response.headers.getSetCookie?.() ?? (response.headers.get("set-cookie") ? [response.headers.get("set-cookie")] : []);
-  const cookies = new Map((loginCookie ?? "").split(/;\s*/).filter(Boolean).map((item) => item.split("=", 2)));
+  const cookies = new Map(
+    (loginCookie ?? "")
+      .split(/;\s*/)
+      .filter(Boolean)
+      .map(cookiePair)
+  );
   for (const value of setCookies) {
     const [pair] = value.split(";", 1);
-    const [name, cookieValue] = pair.split("=", 2);
+    const [name, cookieValue] = cookiePair(pair);
     if (name && cookieValue !== undefined) cookies.set(name, cookieValue);
   }
   loginCookie = [...cookies].map(([name, value]) => `${name}=${value}`).join("; ");
@@ -94,7 +104,7 @@ async function listNotebookFiles(path, recursive) {
   const pending = [normalized];
   while (pending.length) {
     const directory = pending.shift();
-    const entries = await jupyter(`/api/contents/${encodeURI(directory)}`, { query: { content: 0 } });
+    const entries = await jupyter(`/api/contents/${encodeURI(directory)}`, { query: { content: 1 } });
     if (entries.type === "notebook") {
       result.push({ path: entries.path, name: entries.name, last_modified: entries.last_modified });
       continue;
